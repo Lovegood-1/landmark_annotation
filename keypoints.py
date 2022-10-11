@@ -5,6 +5,8 @@ import base64
 import glob
 import os
 import random
+import numpy as np
+import pandas as pd
 import tkinter.messagebox
 from tkinter import *
 from tkinter import messagebox
@@ -56,7 +58,7 @@ class LabelTool():
         self.pointIdList = []
         self.pointId = None
         self.pointList = []
-
+        self.pointList_xyz = []
         # ----------------- GUI 部件 ---------------------
         # dir entry & load
         self.label1 = Label(self.frame, text="ImageDir:")
@@ -228,7 +230,7 @@ class LabelTool():
         labelname = self.imagename + '.txt'
         self.labelfilename = os.path.join(self.outDir, labelname)
         bbox_cnt = 0
-        if os.path.exists(self.labelfilename):
+        if os.path.exists(self.labelfilename): # 加载图像的时候顺带加载了标签
             with open(self.labelfilename) as f:
                 for (i, line) in enumerate(f):
                     if i == 0:
@@ -271,6 +273,14 @@ class LabelTool():
             f.write('%d\n' % len(self.pointList))
             for bbox in self.pointList:
                 f.write(' '.join(map(str, bbox)) + '\n')
+
+        if len(self.pointList_xyz) > 0: # 保存为dp文件
+            try:
+                save_pandas(self.pointList_xyz,str(self.labelfilename).replace('txt','csv'))
+                print('save csv file')
+            except:
+                print('Wrong')
+
         print('Image No. %d saved' % (self.cur))
 
     def saveAll(self, event=None):
@@ -283,13 +293,16 @@ class LabelTool():
     def mouseClick(self, event):
         x1, y1 = event.x, event.y
         x1 = x1/self.img_w
-        y1 = y1/self.img_h
+        y1 = y1/self.img_h # 这里默认所有图片一致 （500 * 1000）
+        xyz = print_string()
+        if len(xyz) >0:
+            self.pointList_xyz.append([(x1,y1),xyz.strip().split(",")]) # TODO:检查输入
         self.pointList.append((x1, y1))
         self.pointIdList.append(self.pointId)
         self.pointId = None
 
-        self.listbox.insert(END, '%d:(%.2f, %.2f)' %
-                            (len(self.pointIdList), x1, y1))
+        self.listbox.insert(END, '%d:(%.2f, %.2f) - %s' %
+                            (len(self.pointIdList), x1, y1, xyz))
 
         print(len(self.pointList), self.COLORS[(
             len(self.pointIdList) - 1) % len(self.COLORS)])
@@ -327,6 +340,10 @@ class LabelTool():
         self.listbox.delete(0, len(self.pointList))
         self.pointIdList = []
         self.pointList = []
+        try:
+            self.pointList_xyz = []
+        except:
+            print('有缓存没有清楚干净')
 
     def prevImage(self, event=None):
         self.saveImage()
@@ -359,8 +376,51 @@ class LabelTool():
         width = int(w*factor)
         height = int(h*factor)
         return pil_image.resize((width, height), Image.ANTIALIAS)
+from tkinter.simpledialog import  askfloat, askstring
 
+def print_float():
+    """
+    弹出窗口获取输入 ：浮点
+    """
+    res = askfloat("Spam", "Egg weight\n(in tons)", minvalue=1, maxvalue=100)
+    print(res)
+def print_string():
+    """
+    弹出窗口获取输入：字符串
+    """
+    res = askstring("Spam", "Egg label")
+    print(res)
+    return res
 
+def save_pandas(a_,path):
+    """_summary_
+
+    Args:
+        a_ (_type_): 成员变量，包括：像素和三维坐标
+        path (_type_): 保存csv路径
+    """
+    # a_ = [[(4,5),['1.2',"2.3","5.4"]],[(6,5),['10.2',"20.3","50.4"]]]
+    X_dim = 0
+    Y_dim = 1
+    Z_dim = 2
+
+    ux_matrix = np.zeros((len(a_),2))
+    xyz_matrix = np.zeros((len(a_),3))
+
+    index_ = 0
+    for single_dict in a_:
+        ux_matrix[index_,X_dim] = single_dict[0][X_dim]
+        ux_matrix[index_,Y_dim] = single_dict[0][Y_dim]
+        xyz_matrix[index_,X_dim] = float(single_dict[1][X_dim])
+        xyz_matrix[index_,Y_dim] = float(single_dict[1][Y_dim])
+        xyz_matrix[index_,Z_dim] = float(single_dict[1][Z_dim])
+        index_ +=1
+    m = np.concatenate((ux_matrix,xyz_matrix),axis=1)
+    df = pd.DataFrame(m, columns=['u', 'v', 'x', 'y','z'])
+    a = 1
+    df.to_csv(path,index=None)
+
+    
 if __name__ == '__main__':
     root = Tk()
     tmp = open("eye.ico","wb+")
