@@ -5,9 +5,9 @@ import base64
 import glob
 import os
 import random
-import numpy as np
-import pandas as pd
+import cv2
 import tkinter.messagebox
+import tkinter as tk
 from tkinter import *
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
@@ -15,10 +15,11 @@ from tkinter.filedialog import askdirectory
 from PIL import Image, ImageTk
 
 from icon import img
-
+from utils.uitls import print_string, save_pandas, get_files_basename
+from utils.position import cal_position_show
 w0 = 1  # 图片原始宽度
 h0 = 1  # 图片原始高度
-
+import time
 
 def drawCircle(self, x, y, r, **kwargs):
     return self.create_oval(x-r, y-r, x+r, y+r, width=0, **kwargs)
@@ -130,7 +131,8 @@ class LabelTool():
         self.idxEntry.pack(side=LEFT)
         self.goBtn = Button(self.ctrPanel, text='Go', command=self.gotoImage)
         self.goBtn.pack(side=LEFT)
-
+        self.CalBtn = Button(self.ctrPanel, text='外参标定', command=self.calculatePosition)
+        self.CalBtn.pack(side=LEFT)
         # display mouse position
         self.disp = Label(self.ctrPanel, text='')
         self.disp.pack(side=RIGHT)
@@ -150,6 +152,7 @@ class LabelTool():
         # for debugging
         # self.loadDir()
         self.parent.config(menu=self.menubar)
+        
 
     def usage(self):
         messagebox.showinfo(
@@ -164,7 +167,7 @@ class LabelTool():
 
     def get_save_dir(self):
         self.outDir = askdirectory()
-        print(self.outDir)
+        print(self.outDir) # D:/files/temp/t
 
     def loadDir(self):
         # for debug
@@ -206,6 +209,7 @@ class LabelTool():
         # 获取图像的原始大小
         global w0, h0
         w0, h0 = pil_image.size
+        self.current_img_size = [w0, h0]
 
         # 缩放到指定大小
         pil_image = pil_image.resize(
@@ -296,7 +300,14 @@ class LabelTool():
         y1 = y1/self.img_h # 这里默认所有图片一致 （500 * 1000）
         xyz = print_string()
         if len(xyz) >0:
-            self.pointList_xyz.append([(x1,y1),xyz.strip().split(",")]) # TODO:检查输入
+            try:
+                pixel_cor = [[i for i in xyz.strip().split(",")]]
+                pixel_cor.insert(0, (x1 * self.current_img_size[0], y1 * self.current_img_size[1]))
+                self.pointList_xyz.append(pixel_cor)
+            except:
+                self.pointList_xyz.append([(x1,y1),xyz.strip().split(",")]) # TODO:检查输入
+
+            # self.pointList_xyz.append([(x1,y1),xyz.strip().split(",")]) # TODO:检查输入
         self.pointList.append((x1, y1))
         self.pointIdList.append(self.pointId)
         self.pointId = None
@@ -376,51 +387,37 @@ class LabelTool():
         width = int(w*factor)
         height = int(h*factor)
         return pil_image.resize((width, height), Image.ANTIALIAS)
-from tkinter.simpledialog import  askfloat, askstring
 
-def print_float():
-    """
-    弹出窗口获取输入 ：浮点
-    """
-    res = askfloat("Spam", "Egg weight\n(in tons)", minvalue=1, maxvalue=100)
-    print(res)
-def print_string():
-    """
-    弹出窗口获取输入：字符串
-    """
-    res = askstring("Spam", "Egg label")
-    print(res)
-    return res
+    def calculatePosition(self):
 
-def save_pandas(a_,path):
-    """_summary_
+        def exit_btn():
 
-    Args:
-        a_ (_type_): 成员变量，包括：像素和三维坐标
-        path (_type_): 保存csv路径
-    """
-    # a_ = [[(4,5),['1.2',"2.3","5.4"]],[(6,5),['10.2',"20.3","50.4"]]]
-    X_dim = 0
-    Y_dim = 1
-    Z_dim = 2
+            top.destroy()
+            top.update()
+        Image_Width, Image_Height = 1080, 720
+        # 1 获取指定标签目录下的2个csv文件，生成相应的名字
+        name_list = get_files_basename(self.outDir,['csv'])
+        index_ = 0
+        for camera_ in name_list:
+            # 2 返回图片
+            img_open = cal_position_show(intrisic_M = camera_.replace('.csv','.mat'), 
+                                                position_csv = camera_, 
+                                                img_path =  camera_.replace('.csv','.jpg'))
+            top = tk.Toplevel(self.parent)
+            top.geometry("%sx%s" % (Image_Width+200, Image_Height+200))
+            top.title("外参校准图")
+            img_open = cv2.resize(img_open,(Image_Width, Image_Height))
+            img_open = cv2.cvtColor(img_open, cv2.COLOR_BGR2RGBA)
+            img_open = Image.fromarray(img_open)
+            img_png = ImageTk.PhotoImage(img_open)
+            label_img = tkinter.Label(top, image = img_png,)
+            label_img.pack()
+            label_bt = Button(top,text='EXIT',command=exit_btn)
+            label_bt.pack()
+            # time.sleep(3)
+        pass
 
-    ux_matrix = np.zeros((len(a_),2))
-    xyz_matrix = np.zeros((len(a_),3))
 
-    index_ = 0
-    for single_dict in a_:
-        ux_matrix[index_,X_dim] = single_dict[0][X_dim]
-        ux_matrix[index_,Y_dim] = single_dict[0][Y_dim]
-        xyz_matrix[index_,X_dim] = float(single_dict[1][X_dim])
-        xyz_matrix[index_,Y_dim] = float(single_dict[1][Y_dim])
-        xyz_matrix[index_,Z_dim] = float(single_dict[1][Z_dim])
-        index_ +=1
-    m = np.concatenate((ux_matrix,xyz_matrix),axis=1)
-    df = pd.DataFrame(m, columns=['u', 'v', 'x', 'y','z'])
-    a = 1
-    df.to_csv(path,index=None)
-
-    
 if __name__ == '__main__':
     root = Tk()
     tmp = open("eye.ico","wb+")
