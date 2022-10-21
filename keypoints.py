@@ -389,11 +389,12 @@ class LabelTool():
         return pil_image.resize((width, height), Image.ANTIALIAS)
 
     def calculatePosition(self):
-
+        self.img_list = []
+        self._index = 0
         def exit_btn():
-
-            top.destroy()
-            top.update()
+            # self._index +=1
+            self._index = (self._index +1) % len(self.img_list)
+            label_img.configure(image = self.img_list[self._index])
         Image_Width, Image_Height = 1080, 720
         # 1 获取指定标签目录下的2个csv文件，生成相应的名字
         name_list = get_files_basename(self.outDir,['csv'])
@@ -403,17 +404,21 @@ class LabelTool():
             img_open = cal_position_show(intrisic_M = camera_.replace('.csv','.mat'), 
                                                 position_csv = camera_, 
                                                 img_path =  camera_.replace('.csv','.jpg'))
-            top = tk.Toplevel(self.parent)
-            top.geometry("%sx%s" % (Image_Width+200, Image_Height+200))
-            top.title("外参校准图")
+            
             img_open = cv2.resize(img_open,(Image_Width, Image_Height))
             img_open = cv2.cvtColor(img_open, cv2.COLOR_BGR2RGBA)
             img_open = Image.fromarray(img_open)
             img_png = ImageTk.PhotoImage(img_open)
-            label_img = tkinter.Label(top, image = img_png,)
-            label_img.pack()
-            label_bt = Button(top,text='EXIT',command=exit_btn)
-            label_bt.pack()
+            self.img_list.append(img_png)
+                        
+        top = tk.Toplevel(self.parent)
+        top.geometry("%sx%s" % (Image_Width+200, Image_Height+200))
+        top.title("外参校准图")
+
+        label_img = tkinter.Label(top, image = self.img_list[self._index])
+        label_img.pack()
+        label_bt = Button(top,text='EXIT',command=exit_btn)
+        label_bt.pack()
             # time.sleep(3)
         pass
 

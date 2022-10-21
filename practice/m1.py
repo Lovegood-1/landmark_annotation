@@ -17,6 +17,7 @@
 # tk.Button(root, text='取一个整数', command=print_integer).pack()
 # tk.Button(root, text='取一个浮点数', command=print_float).pack()
 # root.mainloop()
+from socket import INADDR_MAX_LOCAL_GROUP
 import numpy as np
 import pandas as pd
 def save_pandas(a_,path):
@@ -40,3 +41,60 @@ def save_pandas(a_,path):
     df = pd.DataFrame(m, columns=['u', 'v', 'x', 'y','z'])
     a = 1
     df.to_csv(path,index=None)
+
+import tkinter as tk
+import tkinter
+from PIL import Image, ImageTk
+import cv2
+# global root
+root = tk.Tk()
+ 
+def create():
+    """
+    1 返回图像
+    2 显示图像
+    
+    """
+    img_open = cv2.imread(r"practice\1.png")
+
+
+    Image_Width, Image_Height = 1080, 720
+
+    # img_open = Image.open(r"practice\1.png")
+    
+    top = tk.Toplevel()
+    top.geometry("%sx%s" % (Image_Width, Image_Height))
+    top.title("Python")
+    img_open = cv2.resize(img_open,(Image_Width, Image_Height))
+    # msg = tk.Message(top, text="I love Python!")
+    # msg.pack()
+    img_open = cv2.cvtColor(img_open, cv2.COLOR_BGR2RGBA)
+    img_open = Image.fromarray(img_open)
+    img_png = ImageTk.PhotoImage(img_open)
+    label_img = tkinter.Label(top, image = img_png,)
+    label_img.pack()
+    top.mainloop()
+
+ 
+tk.Button(root, text="创建顶级窗口", command=create).pack()
+
+root.mainloop()
+print(1)
+import os
+import glob
+def  get_files_basename(dir_path, fileExtensions):
+    """获取文件夹下某几种后缀的基础名称，返回列表
+
+    Args:
+        fileExtensions (_type_): _description_
+    """
+    fileExtensions = [ "csv" ]
+    listOfFiles    = []
+    listOfFiles_basename    = []
+    img_dir  = r'D:\files\temp\t'
+    for extension in fileExtensions:
+        listOfFiles.extend( glob.glob( img_dir + '\\*.' + extension  ))
+        # listOfFiles.extend( glob.glob( img_dir + '\\*.' + extension.upper()))
+    for file_ in listOfFiles:
+        listOfFiles_basename.append(os.path.splitext(os.path.split(file_)[-1])[0])
+    a = 1
