@@ -10,7 +10,7 @@ import tkinter.messagebox
 import tkinter as tk
 from tkinter import *
 from tkinter import messagebox
-from tkinter.filedialog import askdirectory
+from tkinter.filedialog import askdirectory, askopenfilename
 
 from PIL import Image, ImageTk
 
@@ -71,7 +71,9 @@ class LabelTool():
         self.btn1 = Button(self.frame, text="选择图片目录",
                            command=self.get_image_dir)
         self.btn1.grid(row=0, column=2, sticky=E+W)
-
+        self.btn1_ = Button(self.frame, text="选择外参图片",
+                           command=self.get_image)
+        self.btn1_.grid(row=0, column=3, sticky=E+W)
         self.btn2 = Button(self.frame, text="选择保存目录",
                            command=self.get_save_dir)
         self.btn2.grid(row=1, column=2, sticky=E+W)
@@ -90,7 +92,8 @@ class LabelTool():
 
         self.ldBtn = Button(self.frame, text="开始加载", command=self.loadDir)
         self.ldBtn.grid(row=4, column=1, columnspan=2, sticky=N+E+W)
-
+        self.ldBtn_ = Button(self.frame, text="开始加载单个图片", command=self.loadImg)
+        self.ldBtn_.grid(row=4, column=3,  sticky=N+E+W)
         # main panel for labeling
         self.mainPanel = Canvas(self.frame, bg='lightgray')
         # 鼠标左键点击
@@ -104,15 +107,26 @@ class LabelTool():
         # showing bbox info & delete bbox
         self.lb1 = Label(self.frame, text='关键点坐标:')
         self.lb1.grid(row=5, column=1, columnspan=2, sticky=N+E+W)
+        self.lb1_ = Button(self.frame, text='保存外参文件' ,command=self.saveImage_single)
+        self.lb1_.grid(row=5, column=3,   sticky=N+E+W)
 
         self.listbox = Listbox(self.frame)  # , width=30, height=15)
         self.listbox.grid(row=6, column=1, columnspan=2, sticky=N+S+E+W)
 
         self.btnDel = Button(self.frame, text='删除', command=self.delBBox)
         self.btnDel.grid(row=7, column=1, columnspan=2, sticky=S+E+W)
+        self.btnDel_ = Button(self.frame, text='选择单个内参文件', command=self.set_intrisic_matrix) 
+        self.btnDel_.grid(row=7, column=3,   sticky=S+E+W)
+
+
         self.btnClear = Button(
             self.frame, text='清空', command=self.clearBBox)
         self.btnClear.grid(row=8, column=1, columnspan=2, sticky=N+E+W)
+        self.btnClear_ = Button(
+            self.frame, text='单个外参标定', command=self.calculatePosition_single)
+            
+        self.btnClear_.grid(row=8, column=3,   sticky=N+E+W)
+
 
         # control panel for image navigation
         self.ctrPanel = Frame(self.frame)
@@ -165,6 +179,10 @@ class LabelTool():
         self.imageDir = askdirectory()
         print(self.imageDir)
 
+    def get_image(self):
+        self.single_img = askopenfilename(filetypes=[("PNG", "*.png"),('All Files', '*')])
+        print("Prepare to Load single img",self.single_img)
+
     def get_save_dir(self):
         self.outDir = askdirectory()
         print(self.outDir) # D:/files/temp/t
@@ -200,6 +218,78 @@ class LabelTool():
 
         self.loadImage()
         print('%d images loaded from %s' % (self.total, self.imageDir))
+
+    def loadImg(self):
+        if self.entry_h.get() == "" or self.entry_w.get() == "":
+            messagebox.showwarning(title="警告", message="不输入图片大小的情况下将默认设置为图片本身大小")
+        else:
+            self.img_h = int(self.entry_h.get())
+            self.img_w = int(self.entry_w.get())
+            print("image shape: (%d, %d)" % (self.img_w, self.img_h))
+
+
+        pil_image = Image.open(self.single_img)
+        # get the size of the image
+        # 获取图像的原始大小
+        global w0, h0
+        w0, h0 = pil_image.size
+        self.current_img_size = [w0, h0]
+
+        # 缩放到指定大小
+        pil_image = pil_image.resize(
+            (self.img_w, self.img_h), Image.ANTIALIAS)
+
+        #pil_image = imgresize(w, h, w_box, h_box, pil_image)
+        self.img = pil_image
+
+        self.tkimg = ImageTk.PhotoImage(pil_image)
+
+        self.mainPanel.config(width=self.img_w, height=self.img_h)
+        # (width=max(self.tkimg.width(), self.img_w),
+        #                       height=max(self.tkimg.height(), self.img_h))
+        self.mainPanel.create_image(
+            self.img_w//2, self.img_h//2, image=self.tkimg, anchor=CENTER)
+
+        self.progLabel.config(text="%04d/%04d" % (self.cur, self.total))
+
+        # ----------load labels 该功能暂时不用---------
+        self.clear()
+        # self.imagename = os.path.split(imagepath)[-1].split('.')[0]
+        # labelname = self.imagename + '.txt'
+        # self.labelfilename = os.path.join(self.outDir, labelname)
+        # bbox_cnt = 0
+        # if os.path.exists(self.labelfilename): # 加载图像的时候顺带加载了标签
+        #     with open(self.labelfilename) as f:
+        #         for (i, line) in enumerate(f):
+        #             if i == 0:
+        #                 bbox_cnt = int(line.strip())
+        #                 continue
+        #             tmp = [(t.strip()) for t in line.split()]
+
+        #             # print("*********loadimage***********")
+        #             # print("tmp[0,1]===%.2f, %.2f" %(float(tmp[0]), float(tmp[1])))
+        #             x1 = float(tmp[0])*self.img_w
+        #             y1 = float(tmp[1])*self.img_h
+        #             # 类似鼠标事件
+        #             self.pointList.append((tmp[0], tmp[1]))
+        #             self.pointIdList.append(self.pointId)
+        #             self.pointId = None
+        #             self.listbox.insert(
+        #                 END, '%d:(%s, %s)' % (len(self.pointIdList), tmp[0], tmp[1]))
+        #             self.listbox.itemconfig(
+        #                 len(self.pointIdList) - 1, fg=self.COLORS[(len(self.pointIdList) - 1) % len(self.COLORS)])
+        #             drawCircle(self.mainPanel, x1, y1, 3, fill=self.COLORS[(
+        #                 len(self.pointIdList) - 1) % len(self.COLORS)])
+        #             # print("**********loadimage**********")
+
+        #             tmp[0] = float(tmp[0])
+        #             tmp[1] = float(tmp[1])
+
+
+    def set_intrisic_matrix(self):
+        self.intrisic_matrix = askopenfilename(filetypes=[("MAT", "*.mat"),('All Files', '*')])
+        print("Set intrisic matrix: ",self.intrisic_matrix)        
+        pass
 
     def loadImage(self):
         # load image
@@ -287,6 +377,17 @@ class LabelTool():
 
         print('Image No. %d saved' % (self.cur))
 
+    def saveImage_single(self):
+        """
+        用于存储单个图像
+        """
+        t = self.labelfilename
+        self.labelfilename = self.single_img.split('.')[-2] + '.csv'
+        self.saveImage()
+        self.labelfilename = t
+
+
+
     def saveAll(self, event=None):
         with open(self.labelfilename, 'w') as f:
             f.write('%d\n' % len(self.pointList))
@@ -302,7 +403,7 @@ class LabelTool():
         if len(xyz) >0:
             try:
                 pixel_cor = [[i for i in xyz.strip().split(",")]]
-                pixel_cor.insert(0, (x1 * self.current_img_size[0], y1 * self.current_img_size[1]))
+                pixel_cor.insert(0, (x1 * self.current_img_size[0], y1 * self.current_img_size[1])) # 保存绝对像素坐标（不是相对）
                 self.pointList_xyz.append(pixel_cor)
             except:
                 self.pointList_xyz.append([(x1,y1),xyz.strip().split(",")]) # TODO:检查输入
@@ -395,7 +496,7 @@ class LabelTool():
             # self._index +=1
             self._index = (self._index +1) % len(self.img_list)
             label_img.configure(image = self.img_list[self._index])
-        Image_Width, Image_Height = 1080, 720
+        Image_Width, Image_Height = 1080, 720 # TODO
         # 1 获取指定标签目录下的2个csv文件，生成相应的名字
         name_list = get_files_basename(self.outDir,['csv'])
         index_ = 0
@@ -422,6 +523,23 @@ class LabelTool():
             # time.sleep(3)
         pass
 
+    def calculatePosition_single(self):
+        # 输入单个图片的内参、像素对应点，计算外参并返回图片
+        Image_Width, Image_Height = 1080, 720
+        csv_name = self.single_img.split('.')[-2] + '.csv'
+        img_open = cal_position_show(self.intrisic_matrix, csv_name, self.single_img)
+        img_open = cv2.resize(img_open,(Image_Width, Image_Height))
+        img_open = cv2.cvtColor(img_open, cv2.COLOR_BGR2RGBA)
+        img_open = Image.fromarray(img_open)
+        self.img_png = ImageTk.PhotoImage(img_open)
+        top = tk.Toplevel(self.parent)
+        top.geometry("%sx%s" % (Image_Width+200, Image_Height+200))
+        top.title("外参校准图")
+
+        label_img = tkinter.Label(top, image = self.img_png)
+        label_img.pack()
+
+        pass
 
 if __name__ == '__main__':
     root = Tk()
