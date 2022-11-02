@@ -166,7 +166,7 @@ class LabelTool():
         # for debugging
         # self.loadDir()
         self.parent.config(menu=self.menubar)
-        
+        self.version_2 = {} # 存放基于单张图片标定的信息：图片路径、内参路径、
 
     def usage(self):
         messagebox.showinfo(
@@ -181,6 +181,7 @@ class LabelTool():
 
     def get_image(self):
         self.single_img = askopenfilename(filetypes=[("PNG", "*.png"),('All Files', '*')])
+        self.version_2['single_img'] = self.single_img
         print("Prepare to Load single img",self.single_img)
 
     def get_save_dir(self):
@@ -228,7 +229,7 @@ class LabelTool():
             print("image shape: (%d, %d)" % (self.img_w, self.img_h))
 
 
-        pil_image = Image.open(self.single_img)
+        pil_image = Image.open(self.version_2['single_img'])
         # get the size of the image
         # 获取图像的原始大小
         global w0, h0
@@ -382,11 +383,9 @@ class LabelTool():
         用于存储单个图像
         """
         t = self.labelfilename
-        self.labelfilename = self.single_img.split('.')[-2] + '.csv'
+        self.labelfilename = self.version_2['single_img'].split('.')[-2] + '.csv'
         self.saveImage()
         self.labelfilename = t
-
-
 
     def saveAll(self, event=None):
         with open(self.labelfilename, 'w') as f:
@@ -526,8 +525,8 @@ class LabelTool():
     def calculatePosition_single(self):
         # 输入单个图片的内参、像素对应点，计算外参并返回图片
         Image_Width, Image_Height = 1080, 720
-        csv_name = self.single_img.split('.')[-2] + '.csv'
-        img_open = cal_position_show(self.intrisic_matrix, csv_name, self.single_img)
+        csv_name = self.version_2['single_img'].split('.')[-2] + '.csv'
+        img_open = cal_position_show(self.intrisic_matrix, csv_name, self.version_2['single_img'])
         img_open = cv2.resize(img_open,(Image_Width, Image_Height))
         img_open = cv2.cvtColor(img_open, cv2.COLOR_BGR2RGBA)
         img_open = Image.fromarray(img_open)
