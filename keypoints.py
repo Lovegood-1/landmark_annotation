@@ -6,6 +6,7 @@ import glob
 import os
 import random
 import cv2
+import pandas as pd
 import tkinter.messagebox
 import tkinter as tk
 from tkinter import *
@@ -15,7 +16,7 @@ from tkinter.filedialog import askdirectory, askopenfilename
 from PIL import Image, ImageTk
 
 from icon import img
-from utils.uitls import print_string, save_pandas, get_files_basename
+from utils.uitls import print_string, save_pandas, get_files_basename, check_ip_online, check_rtsp_img, is_ip
 from utils.position import cal_position_show
 w0 = 1  # 图片原始宽度
 h0 = 1  # 图片原始高度
@@ -147,7 +148,9 @@ class LabelTool():
         self.goBtn.pack(side=LEFT)
         self.CalBtn = Button(self.ctrPanel, text='外参标定', command=self.calculatePosition)
         self.CalBtn.pack(side=LEFT)
-        self.IpBtn = Button(self.ctrPanel, text='加入相机', command=self.calculatePosition)
+        self.IpEntry = Entry(self.ctrPanel, width=10)
+        self.IpEntry.pack(side=LEFT)
+        self.IpBtn = Button(self.ctrPanel, text='加入相机', command=self.checkip)
         self.IpBtn.pack(side=LEFT)
         # display mouse position
         self.disp = Label(self.ctrPanel, text='')
@@ -253,15 +256,31 @@ class LabelTool():
             self.img_w//2, self.img_h//2, image=self.tkimg, anchor=CENTER)
 
         self.progLabel.config(text="%04d/%04d" % (self.cur, self.total))
-
+        labelname = os.path.split(self.version_2['single_img'])[-1].split('.')[0] + '.csv'
         # ----------load labels 该功能暂时不用---------
-        self.clear()
-        # self.imagename = os.path.split(imagepath)[-1].split('.')[0]
-        # labelname = self.imagename + '.txt'
-        # self.labelfilename = os.path.join(self.outDir, labelname)
-        # bbox_cnt = 0
-        # if os.path.exists(self.labelfilename): # 加载图像的时候顺带加载了标签
-        #     with open(self.labelfilename) as f:
+        
+        
+         
+        labelfilename = self.version_2['single_img'].split('.')[-2] + '.csv'
+        data = pd.read_csv(labelfilename)
+        for i in range(data.shape[0]):
+            tmp = (data.loc[i]['u'] /w0,data.loc[i]['v']/h0 ,data.loc[i]['x'],data.loc[i]['y'],data.loc[i]['z'] )
+            x1 = float(tmp[0])*self.img_w
+            y1 = float(tmp[1])*self.img_h
+            self.pointList.append((tmp[0], tmp[1]))
+            self.pointIdList.append(self.pointId)
+            self.pointId = None
+            self.listbox.insert(
+                END, '%d:(%s, %s)' % (len(self.pointIdList), tmp[0], tmp[1]))
+            self.listbox.itemconfig(
+                len(self.pointIdList) - 1, fg=self.COLORS[(len(self.pointIdList) - 1) % len(self.COLORS)])
+            drawCircle(self.mainPanel, x1, y1, 3, fill=self.COLORS[(
+                len(self.pointIdList) - 1) % len(self.COLORS)])
+            pass
+
+
+        # if os.path.exists(labelfilename): # 加载图像的时候顺带加载了标签
+        #     with open(labelfilename) as f:
         #         for (i, line) in enumerate(f):
         #             if i == 0:
         #                 bbox_cnt = int(line.strip())
@@ -286,8 +305,7 @@ class LabelTool():
 
         #             tmp[0] = float(tmp[0])
         #             tmp[1] = float(tmp[1])
-
-
+ 
     def set_intrisic_matrix(self):
         self.intrisic_matrix = askopenfilename(filetypes=[("MAT", "*.mat"),('All Files', '*')])
         print("Set intrisic matrix: ",self.intrisic_matrix)        
@@ -535,12 +553,21 @@ class LabelTool():
         top = tk.Toplevel(self.parent)
         top.geometry("%sx%s" % (Image_Width+200, Image_Height+200))
         top.title("外参校准图")
-
         label_img = tkinter.Label(top, image = self.img_png)
         label_img.pack()
-
         pass
 
+    def checkip(self,ip = "192.168.1.202"):
+        ip =  str(self.IpEntry.get()).strip() if is_ip(ip) else  "192.168.1.202"
+
+        ip_online = "OK" if check_ip_online(ip) else "Wrong"# 检查ip是否在线
+        rtsp_img =  "OK" if check_rtsp_img("http://%s/cgi-bin/snapshot.cgi?stream=1"%ip)  else "Wrong"
+        top = tk.Toplevel(self.parent)
+        label_img = tkinter.Label(top, text="IP是否在线   %s" % ip_online)
+        label_img.pack()
+        label_img2 = tkinter.Label(top, text="图像是否合法   %s" % rtsp_img)
+        label_img2.pack()
+        pass
 if __name__ == '__main__':
     root = Tk()
     tmp = open("eye.ico","wb+")
