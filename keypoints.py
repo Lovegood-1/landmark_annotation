@@ -147,6 +147,8 @@ class LabelTool():
         self.goBtn.pack(side=LEFT)
         self.CalBtn = Button(self.ctrPanel, text='外参标定', command=self.calculatePosition)
         self.CalBtn.pack(side=LEFT)
+        self.IpBtn = Button(self.ctrPanel, text='加入相机', command=self.calculatePosition)
+        self.IpBtn.pack(side=LEFT)
         # display mouse position
         self.disp = Label(self.ctrPanel, text='')
         self.disp.pack(side=RIGHT)
@@ -159,7 +161,6 @@ class LabelTool():
         self.menubar = Menu(self.parent)
         self.helpmenu = Menu(self.menubar, tearoff=0)
         self.menubar.add_cascade(label='帮助', menu=self.helpmenu)
-
         self.helpmenu.add_command(label='使用说明', command=self.usage)
         self.helpmenu.add_command(label='关于软件', command=self.about)
 

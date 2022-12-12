@@ -111,7 +111,14 @@ class PNPSolver():
         return outy,outz
 
     def solver(self):
-        retval, self.rvec, self.tvec = cv2.solvePnP(self.Points3D, self.Points2D, self.cameraMatrix, self.distCoefs)
+        # retval, self.rvec, self.tvec = cv2.solvePnP(self.Points3D, self.Points2D, self.cameraMatrix, self.distCoefs)
+        if 1 == 3:
+            retval, self.rvec, self.tvec = cv2.solvePnP(self.Points3D, self.Points2D, self.cameraMatrix, self.distCoefs) # []TODO:  这里只能用4个，有时4个不行必须6个
+        else:
+            objPoints1 = self.Points3D.reshape(-1,3)
+            imgPoints1 = self.Points2D.reshape(-1,1,2)
+            _, self.rvec, self.tvec, inliers  = cv2.solvePnPRansac(objPoints1, imgPoints1, self.cameraMatrix, self.distCoefs) # []TODO: 这里的结果和上面的不一样？
+
         thetax,thetay,thetaz = self.rotationVectorToEulerAngles(self.rvec, 0)
         x = self.tvec[0][0]
         y = self.tvec[1][0]
